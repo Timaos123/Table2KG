@@ -42,7 +42,6 @@ def main(
         if triFileItem.split(".")[0].endswith("Relationships"): 
             triDf=pd.read_csv(os.path.join(dataDir,triFileItem)).loc[:,[":START_ID",":TYPE",":END_ID"]]
             triList=triDf.values.tolist()
-            relType=list(set(triDf[":TYPE"].values.tolist()))[0]
 
             triRelList=[]
             for triRow in triList:
