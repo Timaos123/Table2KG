@@ -8,17 +8,17 @@ def main(
     dataDir="data",
     host="http://localhost:7474",
     username="neo4j",
-    password="myd2561787"):
+    password="neo4j"):
+    
     myGraph=Graph(host,username=username,password=password)
 
     triFileList=os.listdir(dataDir)
-    print(triFileList)
 
     nodeDict={}
-
     for triFileItem in tqdm.tqdm(triFileList):# 获取Node
         if triFileItem.split(".")[0].endswith("Nodes"): 
             nodeDf=pd.read_csv(os.path.join(dataDir,triFileItem))
+            nodeDf.fillna("",inplace=True)
             attrList=nodeDf.columns
             for attrI in range(len(attrList)):
                 if ":ID" in attrList[attrI]:
@@ -41,6 +41,7 @@ def main(
     for triFileItem in tqdm.tqdm(triFileList):# 获取关系
         if triFileItem.split(".")[0].endswith("Relationships"): 
             triDf=pd.read_csv(os.path.join(dataDir,triFileItem)).loc[:,[":START_ID",":TYPE",":END_ID"]]
+            nodeDf.fillna("",inplace=True)
             triList=triDf.values.tolist()
 
             triRelList=[]
@@ -53,7 +54,6 @@ def main(
 
                 triRelation=Relationship(headNode,relName,tailNode)
                 triRelList.append(triRelation)
-            
             myGraph.create(Subgraph(relationships=triRelList))
 
     print("数据导入完成")
