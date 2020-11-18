@@ -15,6 +15,7 @@ def main(
 
     triFileList = os.listdir(dataDir)
 
+    matcher = NodeMatcher(myGraph)
     nodeDict = {}
     for triFileItem in tqdm.tqdm(triFileList):  # 获取Node
         if triFileItem.split(".")[0].endswith("Nodes"):
@@ -38,6 +39,17 @@ def main(
                     else:
                         nodeItem[attrList[attrIndex]
                                  ] = nodeAttrList[nodeIndex][attrIndex]
+
+                tmpSearchList = list(
+                    zip(list(nodeItem.keys()), list(nodeItem.values())))
+                tmpSearchStr = " and ".join(
+                    ["_.`{}` = '{}'".format(row[0], row[1]) for row in tmpSearchList])
+                tmpNode = matcher.match(labelItem).where(tmpSearchStr).first()
+
+                if tmpNode is not None:
+                    nodeItem = tmpNode
+                    print("{}已存在，取已有实体进行替换".format(
+                        nodeItem[attrList[idIndex]]))
                 nodeDict[labelItem].append(
                     (labelItem+"."+str(nodeAttrList[nodeIndex][idIndex]), nodeItem))
             nodeDict[labelItem] = dict(nodeDict[labelItem])
