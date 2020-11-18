@@ -75,7 +75,7 @@ def main(
                 relName = triRow[1]
 
                 rItem = pd.DataFrame(myGraph.run(
-                    "match (p1:people)-[r:__grasp__]->(p2) where r.skillName='{}' return p1,r,p2".format(relName)).data()).values[:, 1].tolist()[0]
+                    "match (p1:{p1label})-[r]->(p2:{p2label}) where type(r)='{rtype}' return p1,r,p2".format(p1label=headNode[":LABEL"], rtype=relName, p2label=tailNode[":LABEL"])).data()).values[:, 1].tolist()[0]
 
                 relOldAttrKey = list(rItem.keys())
                 relOldAttrVal = list(rItem.values())
@@ -95,10 +95,13 @@ def main(
                         relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem]
                     elif keyItem in relNewAttrKVDict.keys() and keyItem not in relOldAttrKVDict.keys():
                         relAttrKVDict[keyItem] = relNewAttrKVDict[keyItem]
+                        print("新增关系属性：{}".format(keyItem))
                     elif keyItem in relNewAttrKVDict.keys() and keyItem in relOldAttrKVDict.keys():
+                        print("更新关系属性：{}".format(keyItem))
                         relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem] + \
                             ";" + relNewAttrKVDict[keyItem]
-
+                    relAttrKVDict[keyItem] = ";".join(
+                        list(set(relAttrKVDict[keyItem].split(";"))))
                 triRelation = Relationship(
                     headNode, relName, tailNode, **relAttrKVDict)
                 triRelList.append(triRelation)
