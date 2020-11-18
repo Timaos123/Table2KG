@@ -45,7 +45,7 @@ def main(
     for triFileItem in tqdm.tqdm(triFileList):  # 获取关系
         if triFileItem.split(".")[0].endswith("Relationships"):
             triDf = pd.read_csv(os.path.join(dataDir, triFileItem))
-            triColumnList = triDf.columns
+            triColumnList = list(triDf.columns)
             triColumnList.remove(":START_ID")
             triColumnList.remove(":TYPE")
             triColumnList.remove(":END_ID")
