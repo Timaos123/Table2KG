@@ -15,7 +15,7 @@ def main(
 
     triFileList = os.listdir(dataDir)
 
-    matcher = NodeMatcher(myGraph)
+    nodeMatcher = NodeMatcher(myGraph)
     nodeDict = {}
     for triFileItem in tqdm.tqdm(triFileList):  # 获取Node
         if triFileItem.split(".")[0].endswith("Nodes"):
@@ -44,7 +44,8 @@ def main(
                     zip(list(nodeItem.keys()), list(nodeItem.values())))
                 tmpSearchStr = " and ".join(
                     ["_.`{}` = '{}'".format(row[0], row[1]) for row in tmpSearchList])
-                tmpNode = matcher.match(labelItem).where(tmpSearchStr).first()
+                tmpNode = nodeMatcher.match(
+                    labelItem).where(tmpSearchStr).first()
 
                 if tmpNode is not None:
                     nodeItem = tmpNode
@@ -73,9 +74,30 @@ def main(
                 tailNode = nodeDict[tailLabelItem][triRow[2]]
                 relName = triRow[1]
 
-                relAttrKey = triColumnList[3:]
-                relAttrVal = triRow[3:]
-                relAttrKVDict = dict(list(zip(relAttrKey, relAttrVal)))
+                rItem = pd.DataFrame(myGraph.run(
+                    "match (p1:people)-[r:__grasp__]->(p2) where r.skillName='{}' return p1,r,p2".format(relName)).data()).values[:, 1].tolist()[0]
+
+                relOldAttrKey = list(rItem.keys())
+                relOldAttrVal = list(rItem.values())
+                relOldAttrKVDict = dict(
+                    list(zip(relOldAttrKey, relOldAttrVal)))
+
+                relNewAttrKey = triColumnList[3:]
+                relNewAttrVal = triRow[3:]
+                relNewAttrKVDict = dict(
+                    list(zip(relNewAttrKey, relNewAttrVal)))
+
+                relAttrKVDict = {}
+                keyList = list(relOldAttrKVDict.keys()) + \
+                    list(relNewAttrKVDict.keys())
+                for keyItem in keyList:
+                    if keyItem in relOldAttrKVDict.keys() and keyItem not in relNewAttrKVDict.keys():
+                        relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem]
+                    elif keyItem in relNewAttrKVDict.keys() and keyItem not in relOldAttrKVDict.keys():
+                        relAttrKVDict[keyItem] = relNewAttrKVDict[keyItem]
+                    elif keyItem in relNewAttrKVDict.keys() and keyItem in relOldAttrKVDict.keys():
+                        relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem] + \
+                            ";" + relNewAttrKVDict[keyItem]
 
                 triRelation = Relationship(
                     headNode, relName, tailNode, **relAttrKVDict)
