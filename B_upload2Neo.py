@@ -74,13 +74,17 @@ def main(
                 tailNode = nodeDict[tailLabelItem][triRow[2]]
                 relName = triRow[1]
 
-                rItem = pd.DataFrame(myGraph.run(
-                    "match (p1:{p1label})-[r]->(p2:{p2label}) where type(r)='{rtype}' return p1,r,p2".format(p1label=headNode[":LABEL"], rtype=relName, p2label=tailNode[":LABEL"])).data()).values[:, 1].tolist()[0]
+                rItemCypherData = pd.DataFrame(myGraph.run(
+                    "match (p1:{p1label})-[r]->(p2:{p2label}) where type(r)='{rtype}' return p1,r,p2".format(p1label=headNode[":LABEL"], rtype=relName, p2label=tailNode[":LABEL"])).data())
 
-                relOldAttrKey = list(rItem.keys())
-                relOldAttrVal = list(rItem.values())
-                relOldAttrKVDict = dict(
-                    list(zip(relOldAttrKey, relOldAttrVal)))
+                if rItemCypherData.shape[0] == 0:
+                    relOldAttrKVDict = {}
+                else:
+                    rItem = rItemCypherData.values[:, 1].tolist()[0]
+                    relOldAttrKey = list(rItem.keys())
+                    relOldAttrVal = list(rItem.values())
+                    relOldAttrKVDict = dict(
+                        list(zip(relOldAttrKey, relOldAttrVal)))
 
                 relNewAttrKey = triColumnList[3:]
                 relNewAttrVal = triRow[3:]
