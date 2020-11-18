@@ -61,7 +61,12 @@ def main(
                 tailNode = nodeDict[tailLabelItem][triRow[2]]
                 relName = triRow[1]
 
-                triRelation = Relationship(headNode, relName, tailNode)
+                relAttrKey = triColumnList[3:]
+                relAttrVal = triRow[3:]
+                relAttrKVDict = dict(list(zip(relAttrKey, relAttrVal)))
+
+                triRelation = Relationship(
+                    headNode, relName, tailNode, **relAttrKVDict)
                 triRelList.append(triRelation)
             myGraph.create(Subgraph(relationships=triRelList))
 
