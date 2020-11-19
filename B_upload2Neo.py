@@ -30,7 +30,7 @@ def main(
             nodeAttrList = nodeDf.values.tolist()
 
             nodeDict[labelItem] = []
-            for nodeIndex in range(len(nodeAttrList)):
+            for nodeIndex in tqdm.tqdm(range(len(nodeAttrList))):
                 nodeItem = Node(labelItem)
                 for attrIndex in range(len(attrList)):
                     if attrIndex == idIndex:
@@ -43,14 +43,15 @@ def main(
                 tmpSearchList = list(
                     zip(list(nodeItem.keys()), list(nodeItem.values())))
                 tmpSearchStr = " and ".join(
-                    ["_.`{}` = '{}'".format(row[0], row[1]) for row in tmpSearchList])
+                    ["_.`{}` = '{}'".format(row[0].replace("\\","/"), row[1].replace("\\"," /")) for row in tmpSearchList])
                 tmpNode = nodeMatcher.match(
                     labelItem).where(tmpSearchStr).first()
 
                 if tmpNode is not None:
                     nodeItem = tmpNode
-                    print("{}已存在，取已有实体进行替换".format(
-                        nodeItem[attrList[idIndex]]))
+                    with open("log.txt", "a+", encoding="utf8") as logFile:
+                        logFile.write("{}已存在，取已有实体进行替换\n".format(
+                            nodeItem[attrList[idIndex]]))
                 nodeDict[labelItem].append(
                     (labelItem+"."+str(nodeAttrList[nodeIndex][idIndex]), nodeItem))
             nodeDict[labelItem] = dict(nodeDict[labelItem])
@@ -66,50 +67,56 @@ def main(
             triDf = triDf.loc[:, triColumnList]
             triList = triDf.values.tolist()
 
-            triRelList = []
-            for triRow in triList:
-                headLabelItem = triRow[0].split(".")[0]
-                headNode = nodeDict[headLabelItem][triRow[0]]
-                tailLabelItem = triRow[2].split(".")[0]
-                tailNode = nodeDict[tailLabelItem][triRow[2]]
-                relName = triRow[1]
+            batchSize=10000
+            batchI=0
+            while batchI*batchSize<len(triList):
+                triRelList = []
+                for triRow in tqdm.tqdm(triList[batchI*batchI*batchSize:min((batchI+1)*batchSize, len(triList))]):
+                    headLabelItem = triRow[0].split(".")[0]
+                    headNode = nodeDict[headLabelItem][triRow[0]]
+                    tailLabelItem = triRow[2].split(".")[0]
+                    tailNode = nodeDict[tailLabelItem][triRow[2]]
+                    relName = triRow[1]
 
-                rItemCypherData = pd.DataFrame(myGraph.run(
-                    "match (p1:{p1label})-[r]->(p2:{p2label}) where type(r)='{rtype}' return p1,r,p2".format(p1label=headNode[":LABEL"], rtype=relName, p2label=tailNode[":LABEL"])).data())
+                    rItemCypherData = pd.DataFrame(myGraph.run(
+                        "match (p1:{p1label})-[r]->(p2:{p2label}) where type(r)='{rtype}' return p1,r,p2".format(p1label=headNode[":LABEL"], rtype=relName, p2label=tailNode[":LABEL"])).data())
 
-                if rItemCypherData.shape[0] == 0:
-                    relOldAttrKVDict = {}
-                else:
-                    rItem = rItemCypherData.values[:, 1].tolist()[0]
-                    relOldAttrKey = list(rItem.keys())
-                    relOldAttrVal = list(rItem.values())
-                    relOldAttrKVDict = dict(
-                        list(zip(relOldAttrKey, relOldAttrVal)))
+                    if rItemCypherData.shape[0] == 0:
+                        relOldAttrKVDict = {}
+                    else:
+                        rItem = rItemCypherData.values[:, 1].tolist()[0]
+                        relOldAttrKey = list(rItem.keys())
+                        relOldAttrVal = list(rItem.values())
+                        relOldAttrKVDict = dict(
+                            list(zip(relOldAttrKey, relOldAttrVal)))
 
-                relNewAttrKey = triColumnList[3:]
-                relNewAttrVal = triRow[3:]
-                relNewAttrKVDict = dict(
-                    list(zip(relNewAttrKey, relNewAttrVal)))
+                    relNewAttrKey = triColumnList[3:]
+                    relNewAttrVal = triRow[3:]
+                    relNewAttrKVDict = dict(
+                        list(zip(relNewAttrKey, relNewAttrVal)))
 
-                relAttrKVDict = {}
-                keyList = list(relOldAttrKVDict.keys()) + \
-                    list(relNewAttrKVDict.keys())
-                for keyItem in keyList:
-                    if keyItem in relOldAttrKVDict.keys() and keyItem not in relNewAttrKVDict.keys():
-                        relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem]
-                    elif keyItem in relNewAttrKVDict.keys() and keyItem not in relOldAttrKVDict.keys():
-                        relAttrKVDict[keyItem] = relNewAttrKVDict[keyItem]
-                        print("新增关系属性：{}".format(keyItem))
-                    elif keyItem in relNewAttrKVDict.keys() and keyItem in relOldAttrKVDict.keys():
-                        print("更新关系属性：{}".format(keyItem))
-                        relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem] + \
-                            ";" + relNewAttrKVDict[keyItem]
-                    relAttrKVDict[keyItem] = ";".join(
-                        list(set(relAttrKVDict[keyItem].split(";"))))
-                triRelation = Relationship(
-                    headNode, relName, tailNode, **relAttrKVDict)
-                triRelList.append(triRelation)
-            myGraph.create(Subgraph(relationships=triRelList))
+                    relAttrKVDict = {}
+                    keyList = list(relOldAttrKVDict.keys()) + \
+                        list(relNewAttrKVDict.keys())
+                    for keyItem in keyList:
+                        if keyItem in relOldAttrKVDict.keys() and keyItem not in relNewAttrKVDict.keys():
+                            relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem]
+                        elif keyItem in relNewAttrKVDict.keys() and keyItem not in relOldAttrKVDict.keys():
+                            relAttrKVDict[keyItem] = relNewAttrKVDict[keyItem]
+                            with open("log.txt","a+",encoding="utf8") as logFile:
+                                logFile.write("新增关系属性：{}\n".format(keyItem))
+                        elif keyItem in relNewAttrKVDict.keys() and keyItem in relOldAttrKVDict.keys():
+                            with open("log.txt", "a+", encoding="utf8") as logFile:
+                                logFile.write("更新关系属性：{}\n".format(keyItem))
+                            relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem] + \
+                                ";" + relNewAttrKVDict[keyItem]
+                        relAttrKVDict[keyItem] = ";".join(
+                            list(set(relAttrKVDict[keyItem].split(";"))))
+                    triRelation = Relationship(
+                        headNode, relName, tailNode, **relAttrKVDict)
+                    triRelList.append(triRelation)
+                myGraph.create(Subgraph(relationships=triRelList))
+                batchI += 1
 
     print("数据导入完成")
 
