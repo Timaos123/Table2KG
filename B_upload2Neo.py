@@ -21,7 +21,7 @@ def main(
     attrIdList = []
     for triFileItem in tqdm.tqdm(triFileList):  # 获取Node
         if triFileItem.split(".")[0].endswith("Nodes"):
-            nodeDf = pd.read_csv(os.path.join(dataDir, triFileItem))
+            nodeDf = pd.read_csv(os.path.join(dataDir, triFileItem), dtype=str)
             nodeDf.fillna("", inplace=True)
             labelItem = list(set(nodeDf[":LABEL"].values.tolist()))[0]
             attrList = nodeDf.columns
@@ -47,7 +47,9 @@ def main(
                 tmpSearchList = list(
                     zip(list(nodeItem.keys()), list(nodeItem.values())))
                 tmpSearchStr = " and ".join(
-                    ["_.`{}` = '{}'".format(row[0].replace("\\", "/"), row[1].replace("\\", " /")) for row in tmpSearchList])
+                    ["_.`{}` = '{}'".format(row[0].replace("\\", "/"), row[1].replace("\\", " /").replace("'", ""))
+                        if type(row[1]) == str else "_.`{}` = '{}'".format(row[0].replace("\\", "/"), row[1])
+                     for row in tmpSearchList])
                 tmpNode = nodeMatcher.match(
                     labelItem).where(tmpSearchStr).first()
 
@@ -62,7 +64,8 @@ def main(
 
     for triFileItem in tqdm.tqdm(triFileList):  # 获取关系
         if triFileItem.split(".")[0].endswith("Relationships"):
-            triDf = pd.read_csv(os.path.join(dataDir, triFileItem))
+            triDf = pd.read_csv(os.path.join(
+                dataDir, triFileItem), dtype=str,nrows=50)
             triColumnList = list(triDf.columns)
             triColumnList.remove(":START_ID")
             triColumnList.remove(":TYPE")
@@ -104,6 +107,7 @@ def main(
                         keyList = list(relOldAttrKVDict.keys()) + \
                             list(relNewAttrKVDict.keys())
                     else:  # 不具有重复值
+                        relOldAttrKVDict={}
                         relNewAttrKey = triColumnList[3:]
                         relNewAttrVal = triRow[3:]
                         relNewAttrKVDict = dict(
