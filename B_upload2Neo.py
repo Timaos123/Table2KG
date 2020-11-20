@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from py2neo import Graph, Node, Relationship, Subgraph
+from py2neo import Graph, Node, Relationship, Subgraph, NodeMatcher
 import os
 import tqdm
 
@@ -18,7 +18,7 @@ def main(
 
     nodeMatcher = NodeMatcher(myGraph)
     nodeDict = {}
-    attrIdList=[]
+    attrIdList = []
     for triFileItem in tqdm.tqdm(triFileList):  # 获取Node
         if triFileItem.split(".")[0].endswith("Nodes"):
             nodeDf = pd.read_csv(os.path.join(dataDir, triFileItem))
@@ -47,7 +47,7 @@ def main(
                 tmpSearchList = list(
                     zip(list(nodeItem.keys()), list(nodeItem.values())))
                 tmpSearchStr = " and ".join(
-                    ["_.`{}` = '{}'".format(row[0].replace("\\","/"), row[1].replace("\\"," /")) for row in tmpSearchList])
+                    ["_.`{}` = '{}'".format(row[0].replace("\\", "/"), row[1].replace("\\", " /")) for row in tmpSearchList])
                 tmpNode = nodeMatcher.match(
                     labelItem).where(tmpSearchStr).first()
 
@@ -71,9 +71,9 @@ def main(
             triDf = triDf.loc[:, triColumnList]
             triList = triDf.values.tolist()
 
-            batchSize=100000
-            batchI=0
-            while batchI*batchSize<len(triList):
+            batchSize = 100000
+            batchI = 0
+            while batchI*batchSize < len(triList):
                 triRelList = []
                 for triRow in tqdm.tqdm(triList[batchI*batchSize:min((batchI+1)*batchSize, len(triList))]):
                     headLabelItem = triRow[0].split(".")[0]
@@ -81,8 +81,8 @@ def main(
                     tailLabelItem = triRow[2].split(".")[0]
                     tailNode = nodeDict[tailLabelItem][triRow[2]]
                     relName = triRow[1]
-                    
-                    if checkExist==True: #具有重复值
+
+                    if checkExist == True:  # 具有重复值
                         rItemCypherData = pd.DataFrame(myGraph.run(
                             "match (p1:{p1label})-[r]->(p2:{p2label}) where type(r)='{rtype}' return distinct r limit 1".format(p1label=headNode[":LABEL"], rtype=relName, p2label=tailNode[":LABEL"])).data())
 
@@ -103,7 +103,7 @@ def main(
                         relAttrKVDict = {}
                         keyList = list(relOldAttrKVDict.keys()) + \
                             list(relNewAttrKVDict.keys())
-                    else: #不具有重复值
+                    else:  # 不具有重复值
                         relNewAttrKey = triColumnList[3:]
                         relNewAttrVal = triRow[3:]
                         relNewAttrKVDict = dict(
@@ -111,13 +111,13 @@ def main(
 
                         relAttrKVDict = {}
                         keyList = list(relNewAttrKVDict.keys())
-                        
+
                     for keyItem in keyList:
                         if keyItem in relOldAttrKVDict.keys() and keyItem not in relNewAttrKVDict.keys():
                             relAttrKVDict[keyItem] = relOldAttrKVDict[keyItem]
                         elif keyItem in relNewAttrKVDict.keys() and keyItem not in relOldAttrKVDict.keys():
                             relAttrKVDict[keyItem] = relNewAttrKVDict[keyItem]
-                            with open("log.txt","a+",encoding="utf8") as logFile:
+                            with open("log.txt", "a+", encoding="utf8") as logFile:
                                 logFile.write("新增关系属性：{}\n".format(keyItem))
                         elif keyItem in relNewAttrKVDict.keys() and keyItem in relOldAttrKVDict.keys():
                             with open("log.txt", "a+", encoding="utf8") as logFile:
@@ -128,7 +128,7 @@ def main(
                             list(set(relAttrKVDict[keyItem].split(";"))))
                     triRelation = Relationship(
                         headNode, relName, tailNode, **relAttrKVDict)
-                    
+
                     triRelList.append(triRelation)
                 myGraph.create(Subgraph(relationships=triRelList))
                 batchI += 1
